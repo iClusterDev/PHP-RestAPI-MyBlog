@@ -45,25 +45,51 @@
 
 
     // get single category
-    public function readOne() {
+    public function readOne($categoryId) {
+      // sql query
+      $query = 'SELECT * FROM ' . $this->table . ' WHERE id = ?';
 
-      // prepare statement
-
-      // execute query
-
-      // fecth properties
+      // prepare query, 
+      // execute & fetch
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute([$categoryId]);
+        return $this->fetchData($stmt);
+      }
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
+      };
     }
 
 
     // create a category
-    public function create() {
-
-      // prepare statement
-
+    public function create($dataObj) {
       // clean data
-      
-      // execute query
+      $dataObj->id = htmlspecialchars(strip_tags($dataObj->id));
+      $dataObj->name = htmlspecialchars(strip_tags($dataObj->name));
 
+      // query
+      $query = 'INSERT INTO ' . $this->table . ' SET id = :id, name = :name';
+
+      // prepare query, 
+      // execute & fetch
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->bindParam(':id', $dataObj->id);
+        $stmt->bindParam(':name', $dataObj->name);
+        $stmt->execute();
+        return array(
+          'id' => $dataObj->id,
+          'name' => $dataObj->name
+        );
+      }
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
+      };
     }
 
 
