@@ -24,7 +24,7 @@
     }
 
 
-    // get categories
+    // get all categories
     public function read() {
       // sql query
       $query = 'SELECT * FROM '.$this->table.' ORDER BY created_at DESC';
@@ -47,13 +47,14 @@
     // get single category
     public function readOne($categoryId) {
       // sql query
-      $query = 'SELECT * FROM ' . $this->table . ' WHERE id = ?';
+      $query = 'SELECT * FROM ' . $this->table . ' WHERE id = :id';
 
       // prepare query, 
       // execute & fetch
       try {
         $stmt = $this->connection->prepare($query);
-        $stmt->execute([$categoryId]);
+        $stmt->bindParam(':id', $categoryId);
+        $stmt->execute();
         return $this->fetchData($stmt);
       }
       catch(PDOException $e) {
@@ -80,10 +81,10 @@
         $stmt->bindParam(':id', $dataObj->id);
         $stmt->bindParam(':name', $dataObj->name);
         $stmt->execute();
-        return array(
+        return array('data' => array(
           'id' => $dataObj->id,
           'name' => $dataObj->name
-        );
+        ));
       }
       catch(PDOException $e) {
         return array(
@@ -94,26 +95,54 @@
 
 
     // update a category
-    public function update() {
+    public function update($dataObj) {
+      // clean data
+      $dataObj->id = htmlspecialchars(strip_tags($dataObj->id));
+      $dataObj->name = htmlspecialchars(strip_tags($dataObj->name));
 
       // prepare statement
+      $query = 'UPDATE ' . $this->table . ' SET name = :name WHERE id = :id';
 
-      // clean data
-      
-      // execute query
-
+      // prepare query, 
+      // execute & fetch
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->bindParam(':id', $dataObj->id);
+        $stmt->bindParam(':name', $dataObj->name);
+        $stmt->execute();
+        return array('data' => array(
+          'id' => $dataObj->id,
+          'name' => $dataObj->name
+        ));
+      }
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
+      };
     }
 
     
     // delete category
-    public function delete() {
-
-      // prepare statement
-
+    public function delete($dataObj) {
       // clean data
+      $dataObj->id = htmlspecialchars(strip_tags($dataObj->id));
+
+      // prepare query, 
+      // execute & fetch
+      $query = 'DELETE FROM ' . $this->table . ' WHERE id = :id';
 
       // execute query
-
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->bindParam(':id', $dataObj->id);
+        $stmt->execute();
+        return array('data' => array());
+      }
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
+      };
     }
-
   }
