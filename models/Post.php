@@ -1,25 +1,36 @@
 <?php
   class Post {
-    // Post DB properties
-    private $conn;
+
+    // Category DB properties
+    private $connection;
     private $table = 'posts';
 
-    // Post fields
-    public $id;
-    public $category_id;
-    public $category_name;
-    public $title;
-    public $body;
-    public $author;
-    public $created_at;
-
-    // constructor with DB
-    public function __construct($db) {
-      $this->conn = $db;
+    // Constructor with DB
+    public function __construct($connection) {
+      $this->connection = $connection;
     }
 
-    // get posts
+    // Private methods
+    private function fetchData($queryResult) {
+      $dataArray = array( 'data' => array() );
+      while ($row = $queryResult->fetch(PDO::FETCH_ASSOC)) {
+        extract($row);
+        array_push($dataArray['data'], array(
+          'id' => $id,
+          'category_id' => $category_id,
+          'category_name' => $category_name,
+          'title' => $title,
+          'body' => $body,
+          'author' => $author
+        ));
+      }  
+      return $dataArray;
+    }
+
+
+    // get all categories
     public function read() {
+      // sql query
       $query = 'SELECT 
           c.name as category_name,
           p.id, 
@@ -35,17 +46,24 @@
         ORDER BY
           p.created_at DESC';
 
-      // prepare statement
-      $stmt = $this->conn->prepare($query);
-
-      // execute query
-      $stmt->execute();
-
-      return $stmt;
+      // prepare query, 
+      // execute & fetch
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        return $this->fetchData($stmt);
+      }
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
+      };
     }
 
-    // get single post
-    public function read_single() {
+
+    // get single category
+    public function readOne($postId) {
+      // sql query
       $query = 'SELECT 
           c.name as category_name,
           p.id, 
@@ -59,28 +77,34 @@
         LEFT JOIN 
           categories c ON p.category_id = c.id 
         WHERE 
-          p.id = ? 
+          p.id = :id 
         LIMIT 0,1';
 
-      // prepare statement
-      $stmt = $this->conn->prepare($query);
-
-      // execute query
-      $stmt->bindParam(1, $this->id);
-      $stmt->execute();
-
-      // fecth properties
-      $row = $stmt->fetch(PDO::FETCH_ASSOC);
-      $this->title = $row['title'];
-      $this->body = $row['body'];
-      $this->author = $row['author'];
-      $this->created_at = $row['created_at'];
-      $this->category_name = $row['category_name'];
-      $this->category_id = $row['category_id'];
+      // prepare query, 
+      // execute & fetch
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->bindParam(':id', $postId);
+        $stmt->execute();
+        return $this->fetchData($stmt);
+      }
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
+      };
     }
 
-    // create a post
-    public function create() {
+
+    // create a category
+    public function create($dataObj) {
+      // clean data
+      $dataObj->title = htmlspecialchars(strip_tags($dataObj->title));
+      $dataObj->body = htmlspecialchars(strip_tags($dataObj->body));
+      $dataObj->author = htmlspecialchars(strip_tags($dataObj->author));
+      $dataObj->category_id = htmlspecialchars(strip_tags($dataObj->category_id));
+
+      // query
       $query = 'INSERT INTO ' . 
           $this->table . ' 
         SET 
@@ -89,32 +113,40 @@
           author = :author, 
           category_id = :category_id';
 
-      // prepare statement
-      $stmt = $this->conn->prepare($query);
-
-      // clean data
-      $this->title = htmlspecialchars(strip_tags($this->title));
-      $this->body = htmlspecialchars(strip_tags($this->body));
-      $this->author = htmlspecialchars(strip_tags($this->author));
-      $this->category_id = htmlspecialchars(strip_tags($this->category_id));
-      
-      // execute query
-      $stmt->bindParam(':title', $this->title);
-      $stmt->bindParam(':body', $this->body);
-      $stmt->bindParam(':author', $this->author);
-      $stmt->bindParam(':category_id', $this->category_id);
-
-      if ($stmt->execute()) {
-        return true;
-      } else {
-        printf('Error: %s.\n', $stmt->error);
-        return false;
+      // prepare query, 
+      // execute & fetch
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->bindParam(':title', $dataObj->title);
+        $stmt->bindParam(':body', $dataObj->body);
+        $stmt->bindParam(':author', $dataObj->author);
+        $stmt->bindParam(':category_id', $dataObj->category_id);
+        $stmt->execute();
+        return array('data' => array(
+          'title' => $dataObj->title,
+          'body' => $dataObj->body,
+          'author' => $dataObj->author,
+          'category_id' => $dataObj->category_id
+        ));
+      }
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
       };
-
     }
 
-    // update a post
-    public function update() {
+
+    // update a category
+    public function update($dataObj) {
+      // clean data
+      $dataObj->id = htmlspecialchars(strip_tags($dataObj->id));
+      $dataObj->title = htmlspecialchars(strip_tags($dataObj->title));
+      $dataObj->body = htmlspecialchars(strip_tags($dataObj->body));
+      $dataObj->author = htmlspecialchars(strip_tags($dataObj->author));
+      $dataObj->category_id = htmlspecialchars(strip_tags($dataObj->category_id));
+
+      // prepare statement
       $query = 'UPDATE ' . 
           $this->table . ' 
         SET 
@@ -125,51 +157,52 @@
         WHERE 
           id = :id';
 
-      // prepare statement
-      $stmt = $this->conn->prepare($query);
-
-      // clean data
-      $this->title = htmlspecialchars(strip_tags($this->title));
-      $this->body = htmlspecialchars(strip_tags($this->body));
-      $this->author = htmlspecialchars(strip_tags($this->author));
-      $this->category_id = htmlspecialchars(strip_tags($this->category_id));
-      $this->id = htmlspecialchars(strip_tags($this->id));
-      
-      // execute query
-      $stmt->bindParam(':title', $this->title);
-      $stmt->bindParam(':body', $this->body);
-      $stmt->bindParam(':author', $this->author);
-      $stmt->bindParam(':category_id', $this->category_id);
-      $stmt->bindParam(':id', $this->id);
-
-      if ($stmt->execute()) {
-        return true;
+      // prepare query, 
+      // execute & fetch
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->bindParam(':id', $dataObj->id);
+        $stmt->bindParam(':title', $dataObj->title);
+        $stmt->bindParam(':body', $dataObj->body);
+        $stmt->bindParam(':author', $tdataObj->author);
+        $stmt->bindParam(':category_id', $thdataObj->category_id);
+        $stmt->execute();
+        return array('data' => array(
+          'id' => $dataObj->id,
+          'title' => $dataObj->title,
+          'body' => $dataObj->body,
+          'author' => $dataObj->author,
+          'category_id' => $dataObj->category_id
+        ));
       }
-
-      printf('Error: %s.\n', $stmt->error);
-      return false;
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
+      };
     }
 
-    // delete post
-    public function delete() {
+    
+    // delete category
+    public function delete($dataObj) {
+      // clean data
+      $dataObj->id = htmlspecialchars(strip_tags($dataObj->id));
+
+      // prepare query, 
+      // execute & fetch
       $query = 'DELETE FROM ' . $this->table . ' WHERE id = :id';
 
-      // prepare statement
-      $stmt = $this->conn->prepare($query);
-
-      // clean data
-      $this->id = htmlspecialchars(strip_tags($this->id));
-
       // execute query
-      $stmt->bindParam(':id', $this->id);
-
-      if ($stmt->execute()) {
-        return true;
+      try {
+        $stmt = $this->connection->prepare($query);
+        $stmt->bindParam(':id', $dataObj->id);
+        $stmt->execute();
+        return array('data' => array());
       }
-
-      printf('Error: %s.\n', $stmt->error);
-      return false;
-
+      catch(PDOException $e) {
+        return array(
+          'error' => $e->getMessage()
+        );
+      };
     }
-
   }
